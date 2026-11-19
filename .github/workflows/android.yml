@@ -1,0 +1,42 @@
+name: Zbuduj Paczki Offline APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rozpakuj projekt
+        run: unzip -q PaczkiOffline_Malopolska_Android.zip
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Przygotuj dane Malopolski
+        working-directory: PaczkiOffline
+        run: |
+          python -m pip install osmium
+          python tools/prepare_malopolska.py
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Zainstaluj Android SDK
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Zbuduj APK
+        working-directory: PaczkiOffline
+        run: gradle --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PaczkiOffline-Malopolska-APK
+          path: PaczkiOffline/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
